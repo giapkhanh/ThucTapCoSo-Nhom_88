@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from models import DetectionFinding, PersistentFinding, PersistenceStatus, AnomalyType
 
 def analyze_persistence(
