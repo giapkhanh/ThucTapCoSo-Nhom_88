@@ -13,6 +13,21 @@ def compile_simulated_fixture():
         sys.exit(1)
     print("    -> Compilation successful: ./libhidepid.so")
 
+def run_detector(env=None):
+    cmd = [sys.executable, "main.py", "--json"]
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    if proc.returncode != 0:
+        print(f"[!] Detector execution failed (returncode {proc.returncode}):", file=sys.stderr)
+        if proc.stderr:
+            print(proc.stderr, file=sys.stderr)
+        sys.exit(1)
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        print(f"[!] Failed to parse detector JSON output: {e}", file=sys.stderr)
+        print(f"[!] Raw stdout: {proc.stdout}", file=sys.stderr)
+        sys.exit(1)
+
 def run_evaluation():
     compile_simulated_fixture()
     
@@ -24,12 +39,7 @@ def run_evaluation():
 
     # 1. Baseline Run (Clean environment)
     print("\n[*] Running Experiment 1: Clean Baseline System...")
-    baseline_proc = subprocess.run(
-        [sys.executable, "main.py", "--json"],
-        capture_output=True,
-        text=True
-    )
-    baseline_data = json.loads(baseline_proc.stdout)
+    baseline_data = run_detector()
     baseline_findings = baseline_data.get("findings", [])
     baseline_hidden = [f for f in baseline_findings if f["anomaly_type"] == "HIDDEN_FROM_PROCFS"]
     print(f"    -> Unexpected HIDDEN_FROM_PROCFS findings: {len(baseline_hidden)}")
@@ -47,14 +57,7 @@ def run_evaluation():
         env["LD_PRELOAD"] = so_path
         env["HIDE_PID"] = str(target_pid)
 
-        attack_run = subprocess.run(
-            [sys.executable, "main.py", "--json"],
-            capture_output=True,
-            text=True,
-            env=env
-        )
-
-        attack_data = json.loads(attack_run.stdout)
+        attack_data = run_detector(env=env)
         findings = attack_data.get("findings", [])
         
         hidden_findings = [f for f in findings if f["anomaly_type"] == "HIDDEN_FROM_PROCFS"]
