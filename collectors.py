@@ -6,6 +6,8 @@ from typing import List, Optional
 from models import TaskObservation, ObservationSource
 
 libc = ctypes.CDLL("libc.so.6", use_errno=True)
+libc.kill.argtypes = [ctypes.c_int, ctypes.c_int]
+libc.kill.restype = ctypes.c_int
 
 def _read_comm(path: str) -> Optional[str]:
     try:
@@ -13,6 +15,15 @@ def _read_comm(path: str) -> Optional[str]:
             return f.read().strip()
     except (FileNotFoundError, ProcessLookupError, PermissionError):
         return None
+
+def _get_pid_max() -> int:
+    fallback = 32768
+    try:
+        with open('/proc/sys/kernel/pid_max', 'r') as f:
+            val = int(f.read().strip())
+            return val if val > 0 else fallback
+    except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError, OSError):
+        return fallback
 
 def collect_from_proc() -> List[TaskObservation]:
     """
@@ -54,7 +65,7 @@ def collect_from_proc() -> List[TaskObservation]:
                                 )
                 except (FileNotFoundError, ProcessLookupError, PermissionError):
                     pass
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError, PermissionError):
         pass
         
     return observations
@@ -69,13 +80,7 @@ def collect_from_process_probe() -> List[TaskObservation]:
     """
     observations = []
     scan_time = time.time()
-    
-    try:
-        with open('/proc/sys/kernel/pid_max', 'r') as f:
-            pid_max = int(f.read().strip())
-    except FileNotFoundError:
-        pid_max = 32768
-
+    pid_max = _get_pid_max()
     kill_func = libc.kill
 
     for pid in range(1, pid_max + 1):
