@@ -82,6 +82,11 @@ def main():
 
     args = parser.parse_args()
 
+    if args.rounds <= 0:
+        parser.error("Argument -r/--rounds must be a positive integer (> 0).")
+    if args.interval < 0:
+        parser.error("Argument -i/--interval must be a non-negative number (>= 0).")
+
     meta, findings = run_scan(
         rounds=args.rounds,
         interval=args.interval,
