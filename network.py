@@ -25,7 +25,7 @@ def decode_hex_endpoint(hex_endpoint: str) -> str:
         ip_str = socket.inet_ntoa(ip_bytes)
         port_num = int(hex_port, 16)
         return f"{ip_str}:{port_num}"
-    except Exception:
+    except (ValueError, IndexError, struct.error, OSError):
         return hex_endpoint
 
 def parse_proc_net_tcp() -> List[Tuple[int, str, str, str]]:
@@ -35,14 +35,18 @@ def parse_proc_net_tcp() -> List[Tuple[int, str, str, str]]:
             lines = f.readlines()[1:]
             for line in lines:
                 parts = line.strip().split()
-                if len(parts) >= 10:
+                if len(parts) < 10:
+                    continue
+                try:
                     local_addr = decode_hex_endpoint(parts[1])
                     rem_addr = decode_hex_endpoint(parts[2])
                     state_code = parts[3]
                     state = TCP_STATES.get(state_code, f"UNKNOWN({state_code})")
                     inode = int(parts[9])
                     records.append((inode, local_addr, rem_addr, state))
-    except FileNotFoundError:
+                except (ValueError, IndexError):
+                    continue
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
         pass
     return records
 
@@ -71,7 +75,7 @@ def map_socket_inodes_to_pids() -> Tuple[Dict[int, int], int]:
                     permission_denied_count += 1
                 except (FileNotFoundError, ProcessLookupError):
                     pass
-    except FileNotFoundError:
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
         pass
 
     return inode_to_pid, permission_denied_count
