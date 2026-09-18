@@ -2,6 +2,17 @@ import json
 from typing import List, Dict, Any
 from models import PersistentFinding, AnomalyType
 
+def _finding_to_dict(finding: PersistentFinding) -> Dict[str, Any]:
+    return {
+        "pid": finding.pid,
+        "anomaly_type": finding.anomaly_type.value,
+        "persistence_status": finding.persistence_status.value,
+        "severity": finding.severity,
+        "rounds_detected": finding.rounds_detected,
+        "total_rounds": finding.total_rounds,
+        "evidence": finding.evidence
+    }
+
 def generate_json_report(
     summary_meta: Dict[str, Any],
     findings: List[PersistentFinding]
@@ -9,18 +20,7 @@ def generate_json_report(
     report_dict = {
         "metadata": summary_meta,
         "total_anomalies": len(findings),
-        "findings": [
-            {
-                "pid": f.pid,
-                "anomaly_type": f.anomaly_type.value,
-                "persistence_status": f.persistence_status.value,
-                "severity": f.severity,
-                "rounds_detected": f.rounds_detected,
-                "total_rounds": f.total_rounds,
-                "evidence": f.evidence
-            }
-            for f in findings
-        ]
+        "findings": [_finding_to_dict(f) for f in findings]
     }
     return json.dumps(report_dict, indent=2)
 
@@ -32,15 +32,15 @@ def generate_text_report(
     lines.append("=" * 70)
     lines.append("       PROCESS VISIBILITY ANOMALY DETECTION REPORT")
     lines.append("=" * 70)
-    lines.append(f" Scan Time: {summary_meta.get('start_time')}")
-    lines.append(f" Rounds:    {summary_meta.get('rounds')} (Interval: {summary_meta.get('interval')}s)")
-    lines.append(f" Network:   {'ENABLED' if summary_meta.get('network_correlation') else 'DISABLED'}")
+    lines.append(f" Start Time: {summary_meta.get('start_time')}")
+    lines.append(f" Rounds:     {summary_meta.get('rounds')} (Interval: {summary_meta.get('interval')}s)")
+    lines.append(f" Network:    {'ENABLED' if summary_meta.get('network_correlation') else 'DISABLED'}")
     lines.append(f" Total Anomalies Found: {len(findings)}")
     lines.append("-" * 70)
 
     if not findings:
         lines.append(" [✓] System Status: CLEAN")
-        lines.append("     No process visibility discrepancies or unowned active sockets detected.")
+        lines.append("     No anomalies detected.")
     else:
         lines.append(" [!] ANOMALIES DETECTED:")
         for idx, f in enumerate(findings, start=1):
